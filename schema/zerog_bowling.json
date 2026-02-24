@@ -3,7 +3,7 @@
   "schema_version": 1,
   "encoding": "json",
   "min_players": 1,
-  "max_players": 6,
+  "max_players": 4,
   "types": {
     "Vec3": { "x": "float", "y": "float", "z": "float" },
 

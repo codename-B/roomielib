@@ -1,6 +1,6 @@
-//! Load per-app schema to get default room settings (min_players, max_players).
+//! Load per-app config to get default room settings (min_players, max_players).
 //!
-//! Schema path: env ROOMIE_SCHEMA_DIR, or "schema" relative to current directory.
+//! App config path: env ROOMIE_APP_DIR, or "apps" relative to current directory.
 
 use std::path::PathBuf;
 use std::sync::OnceLock;
@@ -15,35 +15,35 @@ fn get_cache() -> &'static DashMap<String, RoomSettings> {
     CACHE.get_or_init(DashMap::new)
 }
 
-/// Minimal schema fragment we need for room defaults.
+/// Minimal app config fragment we need for room defaults.
 #[derive(serde::Deserialize, Default)]
-struct SchemaRoomDefaults {
+struct AppRoomDefaults {
     #[serde(default)]
     min_players: u32,
     #[serde(default)]
     max_players: u32,
 }
 
-fn schema_dir() -> Option<PathBuf> {
-    let is_schema_dir = |p: &std::path::Path| p.is_dir();
-    if let Some(dir) = std::env::var_os("ROOMIE_SCHEMA_DIR") {
+fn app_dir() -> Option<PathBuf> {
+    let is_app_dir = |p: &std::path::Path| p.is_dir();
+    if let Some(dir) = std::env::var_os("ROOMIE_APP_DIR") {
         let p = PathBuf::from(dir);
-        if is_schema_dir(&p) {
+        if is_app_dir(&p) {
             return Some(p);
         }
     }
     if let Ok(cwd) = std::env::current_dir() {
-        let p = cwd.join("schema");
-        if is_schema_dir(&p) {
+        let p = cwd.join("apps");
+        if is_app_dir(&p) {
             return Some(p);
         }
     }
     // When run from target/debug/ or target/release/, repo root is ../..
     if let Ok(exe) = std::env::current_exe() {
         if let Some(parent) = exe.parent() {
-            for rel in ["schema", "../schema", "../../schema"] {
+            for rel in ["apps", "../apps", "../../apps"] {
                 let p = parent.join(rel);
-                if is_schema_dir(&p) {
+                if is_app_dir(&p) {
                     return Some(p);
                 }
             }
@@ -52,7 +52,7 @@ fn schema_dir() -> Option<PathBuf> {
     None
 }
 
-/// Returns default room settings for the given app by loading `schema/{app_key}.json`
+/// Returns default room settings for the given app by loading `apps/{app_key}.json`
 /// and reading `min_players` and `max_players`. If the file is missing or invalid,
 /// returns `RoomSettings::default()` (or app-specific fallbacks for known apps).
 pub fn default_room_settings_for_app(app_key: &str) -> RoomSettings {
@@ -73,10 +73,10 @@ pub fn default_room_settings_for_app(app_key: &str) -> RoomSettings {
 }
 
 fn load_settings_from_disk(app_key: &str) -> Option<RoomSettings> {
-    let dir = schema_dir()?;
+    let dir = app_dir()?;
     let path = dir.join(format!("{}.json", app_key));
     let contents = std::fs::read_to_string(&path).ok()?;
-    let defaults: SchemaRoomDefaults = serde_json::from_str(&contents).ok()?;
+    let defaults: AppRoomDefaults = serde_json::from_str(&contents).ok()?;
     Some(RoomSettings {
         min_players: defaults.min_players,
         max_players: if defaults.max_players > 0 {
@@ -88,7 +88,7 @@ fn load_settings_from_disk(app_key: &str) -> Option<RoomSettings> {
     })
 }
 
-/// Returns true if the app_key is a registered game type (has a schema file or is built-in).
+/// Returns true if the app_key is a registered game type (has an app config file or is built-in).
 /// Only registered apps can create or join rooms.
 pub fn is_registered_app(app_key: &str) -> bool {
     if get_cache().contains_key(app_key) {
@@ -111,7 +111,7 @@ fn is_builtin_app(app_key: &str) -> bool {
     matches!(app_key, "pong")
 }
 
-/// Fallback when schema file is not found; known apps get correct min/max so start is enforced.
+/// Fallback when app config file is not found; known apps get correct min/max so start is enforced.
 fn app_fallback(app_key: &str) -> RoomSettings {
     let (min_players, max_players) = if is_builtin_app(app_key) {
         (2, 2) // pong
@@ -133,7 +133,6 @@ mod tests {
     #[test]
     fn bench_load_settings() {
         let app_key = "pong";
-        // Ensure the file exists for the test. "pong" is builtin and has fallback.
         let iterations = 1000;
         let start = Instant::now();
         for _ in 0..iterations {

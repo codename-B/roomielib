@@ -1,0 +1,25 @@
+# Rust
+/server/target/
+
+# C++ / CMake
+/clients/cpp/build/
+/clients/cpp/out/
+*.o
+*.obj
+*.so
+*.dll
+*.dylib
+*.a
+*.lib
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+Makefile
+
+# IDE / OS
+.vs/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db

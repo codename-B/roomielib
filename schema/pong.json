@@ -1,0 +1,30 @@
+{
+  "app_key": "pong",
+  "schema_version": 2,
+  "encoding": "json",
+  "min_players": 2,
+  "max_players": 2,
+  "types": {
+    "Vec2": { "x": "float", "y": "float" },
+    "Ball": { "pos": "Vec2", "vel": "Vec2" },
+    "Paddle": { "side": "int", "y": "float" },
+    "PongState": {
+      "ball": "Ball",
+      "paddles": "array<Paddle>",
+      "scores": "array<int>",
+      "map_width": "float",
+      "map_height": "float",
+      "countdown": "int",
+      "game_started": "bool"
+    },
+    "PongInput": {
+      "paddle_y": "float",
+      "ball_reflected": "bool",
+      "side": "int"
+    }
+  },
+  "snapshot_type": "PongState",
+  "input_type": "PongInput",
+  "_comment_state": "Host sends state (Move → StateUpdate). UTF-8 JSON. Host is authoritative for ball position; clients send inputs.",
+  "_comment_input": "Clients send input (Input → PeerInput to host). UTF-8 JSON. paddle_y = current paddle Y; ball_reflected = true when this client hit the ball; side = 0 left, 1 right."
+}

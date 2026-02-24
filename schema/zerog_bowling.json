@@ -1,0 +1,94 @@
+{
+  "app_key": "zerog_bowling",
+  "schema_version": 1,
+  "encoding": "json",
+  "min_players": 1,
+  "max_players": 6,
+  "types": {
+    "Vec3": { "x": "float", "y": "float", "z": "float" },
+
+    "LobbyPlayer": {
+      "peerId": "int",
+      "name": "string",
+      "avatarIndex": "int",
+      "hasPhoto": "bool",
+      "side": "int"
+    },
+    "LobbyState": {
+      "type": "string",
+      "players": "array<LobbyPlayer>",
+      "gameStarted": "bool"
+    },
+
+    "TurnAdvance": {
+      "type": "string",
+      "currentPlayerIndex": "int",
+      "currentFrame": "int",
+      "currentRoll": "int",
+      "allScores": "array<PlayerScore>"
+    },
+    "PlayerScore": {
+      "peerId": "int",
+      "totalScore": "int",
+      "frameScores": "array<FrameScore>"
+    },
+    "FrameScore": {
+      "roll1": "int",
+      "roll2": "int",
+      "roll3": "int",
+      "total": "int",
+      "isStrike": "bool",
+      "isSpare": "bool"
+    },
+
+    "PlayerPhoto": {
+      "type": "string",
+      "peerId": "int",
+      "jpegBase64": "string"
+    },
+    "ThrowData": {
+      "type": "string",
+      "peerId": "int",
+      "direction": "Vec3",
+      "force": "float",
+      "spinAxis": "Vec3",
+      "spinMagnitude": "float",
+      "curveDir": "Vec3",
+      "curveForce": "float",
+      "isLeftHand": "bool"
+    },
+    "PinImpactData": {
+      "pinIndex": "int",
+      "impactVelocity": "Vec3",
+      "angularVelocity": "Vec3",
+      "contactPoint": "Vec3",
+      "hitStrength": "float",
+      "pitchShift": "float",
+      "hasFlare": "bool",
+      "flareIntensity": "float"
+    },
+    "PinImpactBatch": {
+      "type": "string",
+      "impacts": "array<PinImpactData>"
+    },
+    "RollResult": {
+      "type": "string",
+      "pinsKnocked": "int",
+      "frameScores": "array<FrameScore>",
+      "totalScore": "int",
+      "currentFrame": "int",
+      "currentRoll": "int",
+      "isStrike": "bool",
+      "isSpare": "bool",
+      "isGutter": "bool",
+      "isDoubleMiss": "bool",
+      "consecutiveStrikes": "int",
+      "isComplete": "bool"
+    }
+  },
+  "snapshot_type": "LobbyState",
+  "input_type": "ThrowData",
+  "_comment_state": "Host broadcasts Move blobs: LobbyState (pre-game) or TurnAdvance (in-game). Relayed to all as StateUpdate. UTF-8 JSON with 'type' field discriminator.",
+  "_comment_input": "Clients send Input blobs: PlayerPhoto, ThrowData, PinImpactBatch, or RollResult. Forwarded to host as PeerInput. UTF-8 JSON with 'type' field discriminator.",
+  "_comment_model": "Turn-local with impact replay. Throwing player runs full physics; spectators receive per-pin impact data and replay visual/audio effects without physics collisions."
+}

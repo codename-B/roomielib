@@ -37,6 +37,22 @@ pub enum ClientMessage {
     Ping,
     /// List public, non-full rooms for an app (no session required).
     ListRooms { app_key: String },
+    /// Skill matchmaking (no session required): the public, non-full room of
+    /// the app whose skill (see RoomControl::SetSkill) is nearest to `skill`
+    /// and no further from it than `window`. A window of 0 means any distance.
+    /// The reply is a RoomList of one room, or of none.
+    ///
+    /// The matchmaker is stepped by the caller: ask with a narrow window
+    /// first, and again with a wider one each time nothing turns up, so that
+    /// players of one game are matched across skill bands rather than split
+    /// into separate pools.
+    FindRoom { app_key: String, skill: u32, window: u32 },
+    /// How many players are waiting (no session required): the public,
+    /// non-full rooms of the app that carry a skill, counted into `buckets`
+    /// buckets of width `bucket` (room i goes to skill / bucket). A game that
+    /// packs a queue id into the high part of its skill gets one count per
+    /// queue. The reply is RoomCounts.
+    CountRooms { app_key: String, bucket: u32, buckets: u32 },
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -50,6 +66,9 @@ pub enum RoomControl {
     Ban(PeerId),
     TransferHost(PeerId),
     Leave,
+    /// Host only: the room's skill, for FindRoom. Rooms without one are never
+    /// returned by FindRoom.
+    SetSkill(u32),
 }
 
 // ---------- Server -> Client ----------
@@ -99,6 +118,10 @@ pub enum ServerMessage {
     Pong,
     Error {
         message: String,
+    },
+    /// Response to CountRooms: one count per bucket.
+    RoomCounts {
+        counts: Vec<u32>,
     },
 }
 

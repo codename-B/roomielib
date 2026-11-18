@@ -113,6 +113,80 @@ impl RoomPool {
         (self.rooms.len(), players)
     }
 
+    /// The public, non-full room whose skill is nearest to `skill`, within
+    /// `window` of it (0 = any distance). Rooms with no skill set, and the
+    /// room `exclude` (the asker's own), are passed over. Ties go to the
+    /// lower room code, so two askers always pick the same room.
+    pub fn find_room_by_skill(
+        &self,
+        skill: u32,
+        window: u32,
+        exclude: Option<&RoomCode>,
+    ) -> Option<RoomListEntry> {
+        let mut best: Option<(u32, RoomListEntry)> = None;
+        for ref_multi in self.rooms.iter() {
+            let room = ref_multi.value().lock();
+            if !room.settings.is_public || room.is_full() {
+                continue;
+            }
+            if exclude.map_or(false, |code| *code == room.code) {
+                continue;
+            }
+            let room_skill = match room.skill {
+                Some(s) => s,
+                None => continue,
+            };
+            let distance = room_skill.abs_diff(skill);
+            if window != 0 && distance > window {
+                continue;
+            }
+            let better = match &best {
+                None => true,
+                Some((d, entry)) => {
+                    distance < *d
+                        || (distance == *d && room.code.to_string() < entry.room_code.to_string())
+                }
+            };
+            if better {
+                let mut settings = room.settings.clone();
+                settings.password = None;
+                best = Some((
+                    distance,
+                    RoomListEntry {
+                        room_code: room.code.clone(),
+                        player_count: (room.clients.len() + room.pending.len()) as u32,
+                        settings,
+                    },
+                ));
+            }
+        }
+        best.map(|(_, entry)| entry)
+    }
+
+    /// Public, non-full rooms that carry a skill, counted into `buckets`
+    /// buckets of width `bucket`. Rooms beyond the last bucket are not counted.
+    pub fn count_rooms_by_skill(&self, bucket: u32, buckets: u32) -> Vec<u32> {
+        // A cap, so a request cannot make the server build a huge reply.
+        let buckets = buckets.min(64) as usize;
+        let mut counts = vec![0u32; buckets];
+        if bucket == 0 {
+            return counts;
+        }
+        for ref_multi in self.rooms.iter() {
+            let room = ref_multi.value().lock();
+            if !room.settings.is_public || room.is_full() {
+                continue;
+            }
+            if let Some(skill) = room.skill {
+                let index = (skill / bucket) as usize;
+                if index < buckets {
+                    counts[index] += 1;
+                }
+            }
+        }
+        counts
+    }
+
     /// List public, non-full rooms. Returns room code, player count, and settings (password cleared).
     pub fn list_public_rooms(&self) -> Vec<RoomListEntry> {
         let mut out = Vec::new();

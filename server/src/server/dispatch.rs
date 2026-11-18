@@ -334,6 +334,9 @@ pub(crate) fn dispatch(
                 RoomControl::SetPublic(b) if is_host => {
                     room.settings.is_public = b;
                 }
+                RoomControl::SetSkill(skill) if is_host => {
+                    room.skill = Some(skill);
+                }
                 RoomControl::AcceptPeer(pid) if is_host => {
                     if let Some(info) = room.pending.remove(&pid) {
                         let client_hash = info.client_hash.0.clone();
@@ -417,6 +420,44 @@ pub(crate) fn dispatch(
             };
             let rooms = pool_ref.list_public_rooms();
             to_send.push(ServerMessage::RoomList { rooms });
+        }
+        ClientMessage::FindRoom { app_key, skill, window } => {
+            if !load::is_registered_app(&app_key) {
+                to_send.push(ServerMessage::Error {
+                    message: "unregistered game type".into(),
+                });
+                return Ok(to_send);
+            }
+            let pool_ref = match registry.get(&app_key) {
+                Some(p) => p,
+                None => {
+                    to_send.push(ServerMessage::RoomList { rooms: vec![] });
+                    return Ok(to_send);
+                }
+            };
+            // A host that is waiting and asks again must not be handed its own room.
+            let own = session
+                .as_ref()
+                .filter(|s| s.app_key == app_key)
+                .map(|s| s.room_code.clone());
+            let rooms = pool_ref
+                .find_room_by_skill(skill, window, own.as_ref())
+                .into_iter()
+                .collect();
+            to_send.push(ServerMessage::RoomList { rooms });
+        }
+        ClientMessage::CountRooms { app_key, bucket, buckets } => {
+            if !load::is_registered_app(&app_key) {
+                to_send.push(ServerMessage::Error {
+                    message: "unregistered game type".into(),
+                });
+                return Ok(to_send);
+            }
+            let counts = match registry.get(&app_key) {
+                Some(pool_ref) => pool_ref.count_rooms_by_skill(bucket, buckets),
+                None => vec![0; buckets.min(64) as usize],
+            };
+            to_send.push(ServerMessage::RoomCounts { counts });
         }
     }
     Ok(to_send)

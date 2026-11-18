@@ -90,6 +90,8 @@ pub struct Room {
     pub state: Bytes,
     pub settings: RoomSettings,
     pub banned: HashSet<ClientHash>,
+    /// Set by the host (RoomControl::SetSkill); what FindRoom matches on.
+    pub skill: Option<u32>,
     next_peer_id: PeerId,
 }
 
@@ -110,6 +112,7 @@ impl Room {
             state: Bytes::new(),
             settings,
             banned: HashSet::new(),
+            skill: None,
             next_peer_id: 1,
         }
     }
